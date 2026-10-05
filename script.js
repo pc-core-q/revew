@@ -22,7 +22,7 @@ const IMAGEKIT_URL_ENDPOINT = "https://ik.imagekit.io/YOUR_IMAGEKIT_ID";
 /* ========== 2. UTILS & HELPERS ========== */
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
-const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const esc = s => String(s !== null && s !== undefined ? s : '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const uid = () => Date.now() + Math.floor(Math.random() * 1000);
 
 const ICONS = {
@@ -35,7 +35,7 @@ const ICONS = {
   layers: '<path d="M12 3l9 5-9 5-9-5zM3 13l9 5 9-5"/>'
 };
 const ICON_AR = { code: 'برمجة', cart: 'سلة', device: 'أجهزة', rocket: 'صاروخ', gauge: 'أداء', wrench: 'صيانة', layers: 'طبقات' };
-const icon = n => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[n] || ICONS.code}</svg>`;
+const icon = n => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[n] ? ICONS[n] : ICONS.code}</svg>`;
 const art = (t, h) => 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="hsl(${h},85%,62%)"/><stop offset="1" stop-color="hsl(${h + 45},80%,42%)"/></linearGradient></defs><rect width="640" height="400" fill="url(#g)"/><g stroke="#fff" stroke-opacity=".45" fill="none"><path d="M0 300h640M0 340h640M120 0v400M240 0v400"/><rect x="60" y="70" width="520" height="260" rx="14"/></g><text x="320" y="225" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="56" font-weight="600" fill="#fff">${t}</text></svg>`);
 const DEFAULT_LOGO = '<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"><path d="M16 3l11 6.5v13L16 29 5 22.5v-13z"/><path d="M11 21V11l10 10V11"/></svg>';
 
@@ -144,7 +144,8 @@ async function uploadToCloud(file) {
     });
     const json = await res.json();
     if (json && json.success) return json.data.url;
-    throw new Error(json.error?.message || 'فشل رفع الصورة إلى ImgBB');
+    const msg = (json && json.error && json.error.message) ? json.error.message : 'فشل رفع الصورة إلى ImgBB';
+    throw new Error(msg);
   }
 
   if (UPLOAD_PROVIDER === 'imagekit') {
@@ -153,7 +154,7 @@ async function uploadToCloud(file) {
     }
     const fd = new FormData();
     fd.append('file', file);
-    fd.append('fileName', file.name || `img_${Date.now()}`);
+    fd.append('fileName', file.name ? file.name : `img_${Date.now()}`);
     fd.append('publicKey', IMAGEKIT_PUBLIC_KEY);
     const res = await fetch('https://upload.imagekit.io/api/v1/files/upload', {
       method: 'POST',
@@ -161,7 +162,8 @@ async function uploadToCloud(file) {
     });
     const json = await res.json();
     if (json && json.url) return json.url;
-    throw new Error(json.message || 'فشل رفع الصورة إلى ImageKit');
+    const msg = (json && json.message) ? json.message : 'فشل رفع الصورة إلى ImageKit';
+    throw new Error(msg);
   }
 
   throw new Error('مزود خدمة رفع الصور غير مدعوم.');
@@ -173,7 +175,8 @@ function logoHTML() { return DB.info.logo ? `<img src="${esc(DB.info.logo)}" alt
 function render() {
   const i = DB.info;
   document.title = i.name;
-  $('#favicon').href = i.favicon \vert{}\vert{} 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="#3da5ff"/></svg>');   $$('.brand-mark').forEach(e => e.innerHTML = logoHTML());$$('.brand-name').forEach(e => e.textContent = i.name);$('#heroTitle').textContent = i.heroTitle;
+  const defaultFavicon = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="#3da5ff"/></svg>');
+  $('#favicon').href = i.favicon ? i.favicon : defaultFavicon;   $$('.brand-mark').forEach(e => e.innerHTML = logoHTML());$$('.brand-name').forEach(e => e.textContent = i.name);$('#heroTitle').textContent = i.heroTitle;
   $('#heroText').textContent = i.heroText;
   $('#aboutText').textContent = i.about;
   $('#footDesc').textContent = i.about.slice(0, 140) + (i.about.length > 140 ? '…' : '');
@@ -186,8 +189,12 @@ function render() {
   ].filter(Boolean).join('');
   $('#social').innerHTML = Object.entries(DB.social).filter(([, u]) => u).map(([k, u]) => `<a href="${esc(u)}" target="_blank" rel="noopener" aria-label="${k}">${k[0].toUpperCase() + k.slice(1)}</a>`).join('');
   $('#stats').innerHTML = DB.stats.map(s => `<div class="stat"><b data-count="${esc(s.value)}">${esc(s.value)}</b><span>${esc(s.label)}</span></div>`).join('');
-  $('#services-list').innerHTML = DB.services.map(s => `<article class="card rv">${icon(s.icon)}<h3>${esc(s.title)}</h3><p>${esc(s.desc)}</p></article>`).join('') || '<p class="empty">لا توجد خدمات بعد.</p>';
-  $('#project-list').innerHTML = DB.projects.map(p => `<article class="proj rv"><div class="thumb"><img src="${esc(p.image)}" alt="لقطة من موقع ${esc(p.title)}" loading="lazy"><div class="ov"><span class="cat">${esc(p.category)}</span></div></div><div class="body"><span class="cat">${esc(p.category)}</span><h3>${esc(p.title)}</h3><p>${esc(p.description)}</p><div class="tags">${(p.technologies || []).map(t => `<span>${esc(t)}</span>`).join('')}</div><a class="btn small" href="${esc(p.url)}" target="_blank" rel="noopener">زيارة الموقع</a></div></article>`).join('') || '<p class="empty">لا توجد مشاريع بعد.</p>';
+  
+  const servicesHtml = DB.services.map(s => `<article class="card rv">${icon(s.icon)}<h3>${esc(s.title)}</h3><p>${esc(s.desc)}</p></article>`).join('');
+  $('#services-list').innerHTML = servicesHtml ? servicesHtml : '<p class="empty">لا توجد خدمات بعد.</p>';
+  
+  const projectsHtml = DB.projects.map(p => `<article class="proj rv"><div class="thumb"><img src="${esc(p.image)}" alt="لقطة من موقع ${esc(p.title)}" loading="lazy"><div class="ov"><span class="cat">${esc(p.category)}</span></div></div><div class="body"><span class="cat">${esc(p.category)}</span><h3>${esc(p.title)}</h3><p>${esc(p.description)}</p><div class="tags">${(p.technologies || []).map(t => `<span>${esc(t)}</span>`).join('')}</div><a class="btn small" href="${esc(p.url)}" target="_blank" rel="noopener">زيارة الموقع</a></div></article>`).join('');
+  $('#project-list').innerHTML = projectsHtml ? projectsHtml : '<p class="empty">لا توجد مشاريع بعد.</p>';
   observe();
 }
 
@@ -199,7 +206,7 @@ const PROJECT_FIELDS = [
 ];
 function editProject(id) {
   const p = DB.projects.find(x => x.id === id);
-  openForm({ title: p ? 'تعديل المشروع' : 'إضافة مشروع', fields: PROJECT_FIELDS, values: p || { technologies: [] }, async onSave(v) {
+  openForm({ title: p ? 'تعديل المشروع' : 'إضافة مشروع', fields: PROJECT_FIELDS, values: p ? p : { technologies: [] }, async onSave(v) {
     if (!v.image) v.image = art(v.title.slice(0, 10), 200);
     if (p) Object.assign(p, v); else DB.projects.push({ id: uid(), ...v });
     if (!await saveData()) return false;
@@ -221,7 +228,7 @@ const SERVICE_FIELDS = [
 ];
 function editService(id) {
   const s = DB.services.find(x => x.id === id);
-  openForm({ title: s ? 'تعديل الخدمة' : 'إضافة خدمة', fields: SERVICE_FIELDS, values: s || { icon: 'code' }, async onSave(v) {
+  openForm({ title: s ? 'تعديل الخدمة' : 'إضافة خدمة', fields: SERVICE_FIELDS, values: s ? s : { icon: 'code' }, async onSave(v) {
     if (s) Object.assign(s, v); else DB.services.push({ id: uid(), ...v });
     if (!await saveData()) return false;
     adminView(); return true;
@@ -270,8 +277,16 @@ function adminView() {
 const q = t => !query || t.toLowerCase().includes(query.toLowerCase());
 const VIEWS = {
   dash: () => `<div class="ahead"><h2>لوحة التحكم</h2></div><div class="acards"><div class="acard"><b>${DB.projects.length}</b><span>المشاريع</span></div><div class="acard"><b>${DB.services.length}</b><span>الخدمات</span></div><div class="acard"><b>${Object.values(DB.social).filter(Boolean).length}</b><span>روابط التواصل المضافة</span></div><div class="acard"><b>${DB.stats.length}</b><span>الإحصائيات</span></div></div><div class="panel"><h3>إجراءات سريعة</h3><p>المزامنة سحابية وتظهر التعديلات مباشرة على الموقع لكل المستخدمين.</p><button class="btn" data-act="add-project">إضافة مشروع</button> <button class="btn ghost" data-act="add-service">إضافة خدمة</button></div>`,
-  projects: () => { const l = DB.projects.filter(p => q(p.title + p.category)); return `<div class="ahead"><h2>المشاريع</h2><input class="search" style="max-width:240px" placeholder="ابحث في المشاريع" aria-label="ابحث في المشاريع"><button class="btn" data-act="add-project">إضافة مشروع</button></div>${l.map(p => `<div class="row"><img src="${esc(p.image)}" alt=""><div class="grow"><b>${esc(p.title)}</b><small>${esc(p.category)} ·${esc(p.url)}</small></div><button class="btn small ghost" data-act="edit-project" data-id="${p.id}">تعديل</button><button class="btn small danger" data-act="del-project" data-id="${p.id}">حذف</button></div>`).join('') || '<p class="empty">لا توجد مشاريع. أضف أول مشروع ليظهر في الموقع.</p>'}`; },
-  services: () => { const l = DB.services.filter(s => q(s.title)); return `<div class="ahead"><h2>الخدمات</h2><input class="search" style="max-width:240px" placeholder="ابحث في الخدمات" aria-label="ابحث في الخدمات"><button class="btn" data-act="add-service">إضافة خدمة</button></div>${l.map(s => `<div class="row"><span class="ic">${icon(s.icon)}</span><div class="grow"><b>${esc(s.title)}</b><small>${esc(s.desc)}</small></div><button class="btn small ghost" data-act="edit-service" data-id="${s.id}">تعديل</button><button class="btn small danger" data-act="del-service" data-id="${s.id}">حذف</button></div>`).join('') || '<p class="empty">لا توجد خدمات.</p>'}`; },
+  projects: () => { 
+    const l = DB.projects.filter(p => q(p.title + p.category)); 
+    const rows = l.map(p => `<div class="row"><img src="${esc(p.image)}" alt=""><div class="grow"><b>${esc(p.title)}</b><small>${esc(p.category)} · ${esc(p.url)}</small></div><button class="btn small ghost" data-act="edit-project" data-id="${p.id}">تعديل</button><button class="btn small danger" data-act="del-project" data-id="${p.id}">حذف</button></div>`).join('');
+    return `<div class="ahead"><h2>المشاريع</h2><input class="search" style="max-width:240px" placeholder="ابحث في المشاريع" aria-label="ابحث في المشاريع"><button class="btn" data-act="add-project">إضافة مشروع</button></div>${rows ? rows : '<p class="empty">لا توجد مشاريع. أضف أول مشروع ليظهر في الموقع.</p>'}`; 
+  },
+  services: () => { 
+    const l = DB.services.filter(s => q(s.title)); 
+    const rows = l.map(s => `<div class="row"><span class="ic">${icon(s.icon)}</span><div class="grow"><b>${esc(s.title)}</b><small>${esc(s.desc)}</small></div><button class="btn small ghost" data-act="edit-service" data-id="${s.id}">تعديل</button><button class="btn small danger" data-act="del-service" data-id="${s.id}">حذف</button></div>`).join('');
+    return `<div class="ahead"><h2>الخدمات</h2><input class="search" style="max-width:240px" placeholder="ابحث في الخدمات" aria-label="ابحث في الخدمات"><button class="btn" data-act="add-service">إضافة خدمة</button></div>${rows ? rows : '<p class="empty">لا توجد خدمات.</p>'}`; 
+  },
   website: () => `<div class="ahead"><h2>الموقع</h2></div><div class="panel"><h3>الشركة والقسم الرئيسي والتواصل</h3><p>اسم الشركة ونصوص الواجهة ونبذة عنا والبريد والهاتف والعنوان.</p><button class="btn" data-act="edit-info">تعديل معلومات الموقع</button></div><div class="panel"><h3>الشعار والأيقونة</h3><p>استخدم رابط صورة أو ارفع ملفًا مباشرة عبر السحابة.</p><button class="btn" data-act="edit-brand">تغيير الشعار والأيقونة</button></div><div class="panel"><h3>الإحصائيات</h3><p>${DB.stats.map(s => esc(s.value + ' ' + s.label)).join(' · ')}</p><button class="btn" data-act="edit-stats">تعديل الإحصائيات</button> <button class="btn ghost" data-act="add-stat">إضافة إحصائية</button></div>`,
   social: () => `<div class="ahead"><h2>روابط التواصل</h2></div><div class="panel"><p>الروابط الفارغة لا تظهر في الموقع.</p><button class="btn" data-act="edit-social">تعديل روابط التواصل</button></div>`,
   settings: () => `<div class="ahead"><h2>الإعدادات</h2></div><div class="panel"><h3>إعادة البيانات الافتراضية</h3><p>تحذف كل تغييراتك من السحابة وتستعيد المحتوى المبدئي.</p><button class="btn danger" data-act="reset">إعادة البيانات الافتراضية</button></div>`
@@ -289,7 +304,7 @@ function adminAction(a, id) {
     'add-stat': () => openForm({ title: 'إضافة إحصائية', fields: [{ k: 'value', label: 'القيمة (مثال: 25+)', req: 1 }, { k: 'label', label: 'الوصف', req: 1 }], values: {}, onSave: async v => await saved(() => DB.stats.push({ id: uid(), ...v })) }),
     reset: () => confirmBox('هل تريد إعادة كل بيانات الموقع إلى الوضع الافتراضي؟ ستُفقد تغييراتك.', async () => { DB = makeDefaults(); await saveData(); adminView(); })
   };
-  acts[a] && acts[a]();
+  if (acts[a]) acts[a]();
 }
 async function saved(fn) { fn(); const ok = await saveData(); if (ok) adminView(); return ok; }
 
@@ -300,9 +315,9 @@ function toast(msg, type = '') {
 function modal(html) {
   const bg = document.createElement('div'); bg.className = 'mbg'; bg.innerHTML = `<div class="modal" role="dialog" aria-modal="true">${html}</div>`;
   const prev = document.activeElement;
-  const close = () => { bg.remove(); document.removeEventListener('keydown', esc_); prev && prev.focus && prev.focus(); };
-  const esc_ = e => e.key === 'Escape' && close();
-  document.addEventListener('keydown', esc_); bg.addEventListener('mousedown', e => e.target === bg && close());
+  const close = () => { bg.remove(); document.removeEventListener('keydown', esc_); if (prev && prev.focus) prev.focus(); };
+  const esc_ = e => { if (e.key === 'Escape') close(); };
+  document.addEventListener('keydown', esc_); bg.addEventListener('mousedown', e => { if (e.target === bg) close(); });
   document.body.append(bg); (bg.querySelector('input,textarea,select,button') || bg).focus();
   return { bg, close };
 }
@@ -313,18 +328,19 @@ function confirmBox(msg, onYes) {
 function openForm({ title, fields, values, onSave, submit = 'حفظ التغييرات', note = '' }) {
   const uploads = {};
   const field = f => {
-    const v = values[f.k] ?? '', id = 'f_' + f.k;
+    const v = (values[f.k] !== undefined && values[f.k] !== null) ? values[f.k] : '';
+    const id = 'f_' + f.k;
     let input;
     if (f.type === 'textarea') input = `<textarea id="${id}" rows="4">${esc(v)}</textarea>`;
-    else if (f.type === 'select') input = `<select id="${id}">${f.opts.map(o => `<option value="${o}" ${o === v ? 'selected' : ''}>${ICON_AR[o] || o}</option>`).join('')}</select>`;
+    else if (f.type === 'select') input = `<select id="${id}">${f.opts.map(o => `<option value="${o}" ${o === v ? 'selected' : ''}>${ICON_AR[o] ? ICON_AR[o] : o}</option>`).join('')}</select>`;
     else if (f.type === 'tags') input = `<input id="${id}" value="${esc((v || []).join(', '))}">`;
     else if (f.type === 'image') input = `<input id="${id}" dir="ltr" placeholder="رابط الصورة المباشر" value="${esc(v)}"><input type="file" accept="image/*" data-file="${f.k}" aria-label="رفع صورة إلى السحابة" style="margin-top:.5rem"><img class="pv" src="${esc(v)}" alt="معاينة" ${v ? '' : 'hidden'}>`;
-    else input = `<input id="${id}" type="${f.type || 'text'}" value="${esc(v)}">`;
+    else input = `<input id="${id}" type="${f.type ? f.type : 'text'}" value="${esc(v)}">`;
     return `<div class="f"><label for="${id}">${f.label}${f.req ? ' *' : ''}</label>${input}<span class="err"></span></div>`;
   };
   const m = modal(`<h3>${title}</h3><form novalidate>${fields.map(field).join('')}${note ? `<p class="demo">${note}</p>` : ''}<div class="acts"><button type="button" class="btn ghost" data-n>إلغاء</button><button class="btn">${submit}</button></div></form>`);
   const form = $('form', m.bg);$('[data-n]', m.bg).onclick = m.close;
-  const imgOf = k => uploads[k] || $('#f_' + k, m.bg).value.trim();    $$('[data-file]', m.bg).forEach(inp => inp.addEventListener('change', async () => {
+  const imgOf = k => uploads[k] ? uploads[k] : $('#f_' + k, m.bg).value.trim();    $$('[data-file]', m.bg).forEach(inp => inp.addEventListener('change', async () => {
     const file = inp.files[0];
     if (!file) return;
 
@@ -349,9 +365,10 @@ function openForm({ title, fields, values, onSave, submit = 'حفظ التغيي
       if (f.req && !val) msg = 'هذا الحقل مطلوب.';
       else if (f.type === 'url' && val && !/^https?:\/\//i.test(val)) msg = 'أدخل رابطًا كاملًا يبدأ بـ http:// أو https://';
       else if (f.type === 'email' && val && !/^\S+@\S+\.\S+$/.test(val)) msg = 'أدخل بريدًا إلكترونيًا صحيحًا.';
-      box.classList.toggle('bad', !!msg);
-      $('.err', box).textContent = msg;       if (msg) ok = false;       out[f.k] = f.type === 'tags' ? val.split(',').map(t => t.trim()).filter(Boolean) : val;     });      if (ok) {       const savedOk = await onSave(out);       if (savedOk !== false) m.close();     }   }); }  /* ========== 12. ANIMATIONS & SCROLL ========== */ const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches; let io, counted = new WeakSet(); function observe() {   io = io \vert{}\vert{} new IntersectionObserver(es => es.forEach(e => {     if (!e.isIntersecting) return;     e.target.classList.add('in');     io.unobserve(e.target);     $$('[data-count]', e.target).forEach(countUp);
-  }), { threshold: .15 });
+      box.classList.toggle('bad', Boolean(msg));
+      $('.err', box).textContent = msg;       if (msg) ok = false;       out[f.k] = f.type === 'tags' ? val.split(',').map(t => t.trim()).filter(Boolean) : val;     });      if (ok) {       const savedOk = await onSave(out);       if (savedOk !== false) m.close();     }   }); }  /* ========== 12. ANIMATIONS & SCROLL ========== */ const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches; let io, counted = new WeakSet(); function observe() {   if (!io) {     io = new IntersectionObserver(es => es.forEach(e => {       if (!e.isIntersecting) return;       e.target.classList.add('in');       io.unobserve(e.target);       $$('[data-count]', e.target).forEach(countUp);
+    }), { threshold: .15 });
+  }
   $$('.rv:not(.in)').forEach(el => io.observe(el));$$
 ('[data-count]').forEach(el => {
     if (!el.closest('.rv') && !counted.has(el)) io.observe(el.parentNode);
