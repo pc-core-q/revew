@@ -5,23 +5,20 @@
 // بيانات تسجيل الدخول للوحة التحكم
 const AUTH = { user: 'admin', pass: '1234' };
 
-// 1. إعدادات فايربيس (Firebase Config) - استبدل القيم هنا
-const firebaseConfig = {
+// 1. إعدادات فايربيس (Firebase Config)
+const FIREBASE_CONFIG = {
   apiKey: "AIzaSyDIEYaEcIrnJSEBhm-7wWijmoOPM_QHYjU",
   authDomain: "revew-f8136.firebaseapp.com",
+  databaseURL: "https://revew-f8136-default-rtdb.europe-west1.firebasedatabase.app/",
   projectId: "revew-f8136",
   storageBucket: "revew-f8136.firebasestorage.app",
   messagingSenderId: "775725909156",
   appId: "1:775725909156:web:952c856e306b94ac84d231"
 };
+
 // 2. إعدادات رفع الصور السحابية
-// اختر الخدمة المفضلة: 'imgbb' أو 'imagekit'
 const UPLOAD_PROVIDER = 'imgbb';
-
-// مفتاح ImgBB (إذا اخترت imgbb)
 const IMGBB_API_KEY = "820a1a52d1b835874a9200fe7d3bb6b3";
-
-// إعدادات ImageKit (إذا اخترت imagekit)
 const IMAGEKIT_PUBLIC_KEY = "YOUR_IMAGEKIT_PUBLIC_KEY";
 const IMAGEKIT_URL_ENDPOINT = "https://ik.imagekit.io/YOUR_IMAGEKIT_ID";
 
@@ -86,7 +83,6 @@ if (isFirebaseConfigured && typeof firebase !== 'undefined') {
     firebase.initializeApp(FIREBASE_CONFIG);
     dbRef = firebase.database().ref('nexora_data');
     
-    // المزامنة الحية المباشرة Real-time listener
     dbRef.on('value', snapshot => {
       const val = snapshot.val();
       if (val) {
@@ -104,7 +100,6 @@ if (isFirebaseConfigured && typeof firebase !== 'undefined') {
     console.error('Firebase init failed:', e);
   }
 } else {
-  // وضع العمل الاحتياطي المحلي في حال لم يتم وضع المفاتيح بعد
   try {
     const raw = localStorage.getItem('nexora_site_v3');
     if (raw) DB = Object.assign(makeDefaults(), JSON.parse(raw));
@@ -126,7 +121,7 @@ async function saveData() {
     try {
       localStorage.setItem('nexora_site_v3', JSON.stringify(DB));
       render();
-      toast('تم الحفظ محلياً (يرجى إدخال إعدادات فايربيس للمزامنة السحابية).');
+      toast('تم الحفظ محلياً.');
       return true;
     } catch (e) {
       toast('تعذّر الحفظ لامتلاء المساحة.', 'error');
@@ -139,7 +134,7 @@ async function saveData() {
 async function uploadToCloud(file) {
   if (UPLOAD_PROVIDER === 'imgbb') {
     if (!IMGBB_API_KEY || IMGBB_API_KEY.startsWith('YOUR_')) {
-      throw new Error('يرجى كتابة مفتاح IMGBB_API_KEY داخل script.js');
+      throw new Error('يرجى التأكد من مفتاح IMGBB_API_KEY داخل script.js');
     }
     const fd = new FormData();
     fd.append('image', file);
@@ -154,7 +149,7 @@ async function uploadToCloud(file) {
 
   if (UPLOAD_PROVIDER === 'imagekit') {
     if (!IMAGEKIT_PUBLIC_KEY || IMAGEKIT_PUBLIC_KEY.startsWith('YOUR_')) {
-      throw new Error('يرجى كتابة مفتاح IMAGEKIT_PUBLIC_KEY داخل script.js');
+      throw new Error('يرجى التأكد من مفتاح IMAGEKIT_PUBLIC_KEY داخل script.js');
     }
     const fd = new FormData();
     fd.append('file', file);
@@ -169,19 +164,26 @@ async function uploadToCloud(file) {
     throw new Error(json.message || 'فشل رفع الصورة إلى ImageKit');
   }
 
-  throw new Error('مزود خدمة رفع الصور غير مدعوم أو غير محدد.');
+  throw new Error('مزود خدمة رفع الصور غير مدعوم.');
 }
 
 /* ========== 6. WEBSITE RENDERING ========== */
 function logoHTML() { return DB.info.logo ? `<img src="${esc(DB.info.logo)}" alt="شعار ${esc(DB.info.name)}">` : DEFAULT_LOGO; }
+
 function render() {
   const i = DB.info;
   document.title = i.name;
-  $('#favicon').href = i.favicon \vert{}\vert{} 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="#3da5ff"/></svg>');   $$('.brand-mark').forEach(e => e.innerHTML = logoHTML());$$('.brand-name').forEach(e => e.textContent = i.name);$('#heroTitle').textContent = i.heroTitle; $('#heroText').textContent = i.heroText; $('#aboutText').textContent = i.about;
+  $('#favicon').href = i.favicon \vert{}\vert{} 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="#3da5ff"/></svg>');   $$('.brand-mark').forEach(e => e.innerHTML = logoHTML());$$('.brand-name').forEach(e => e.textContent = i.name);$('#heroTitle').textContent = i.heroTitle;
+  $('#heroText').textContent = i.heroText;
+  $('#aboutText').textContent = i.about;
   $('#footDesc').textContent = i.about.slice(0, 140) + (i.about.length > 140 ? '…' : '');
   $('#copy').textContent = `© ${new Date().getFullYear()} ${i.name}. جميع الحقوق محفوظة.`;
   $('#startProject').href = i.email ? 'mailto:' + i.email : '#contact';
-  $('#contactInfo').innerHTML = [i.email && `<a href="mailto:${esc(i.email)}">${esc(i.email)}</a>`, i.phone && `<div><bdi>${esc(i.phone)}</bdi></div>`, i.address && `<div>${esc(i.address)}</div>`].filter(Boolean).join('');
+  $('#contactInfo').innerHTML = [
+    i.email && `<a href="mailto:${esc(i.email)}">${esc(i.email)}</a>`,
+    i.phone && `<div><bdi>${esc(i.phone)}</bdi></div>`,
+    i.address && `<div>${esc(i.address)}</div>`
+  ].filter(Boolean).join('');
   $('#social').innerHTML = Object.entries(DB.social).filter(([, u]) => u).map(([k, u]) => `<a href="${esc(u)}" target="_blank" rel="noopener" aria-label="${k}">${k[0].toUpperCase() + k.slice(1)}</a>`).join('');
   $('#stats').innerHTML = DB.stats.map(s => `<div class="stat"><b data-count="${esc(s.value)}">${esc(s.value)}</b><span>${esc(s.label)}</span></div>`).join('');
   $('#services-list').innerHTML = DB.services.map(s => `<article class="card rv">${icon(s.icon)}<h3>${esc(s.title)}</h3><p>${esc(s.desc)}</p></article>`).join('') || '<p class="empty">لا توجد خدمات بعد.</p>';
@@ -259,26 +261,4 @@ const q = t => !query || t.toLowerCase().includes(query.toLowerCase());
 const VIEWS = {
   dash: () => `<div class="ahead"><h2>لوحة التحكم</h2></div><div class="acards"><div class="acard"><b>${DB.projects.length}</b><span>المشاريع</span></div><div class="acard"><b>${DB.services.length}</b><span>الخدمات</span></div><div class="acard"><b>${Object.values(DB.social).filter(Boolean).length}</b><span>روابط التواصل المضافة</span></div><div class="acard"><b>${DB.stats.length}</b><span>الإحصائيات</span></div></div><div class="panel"><h3>إجراءات سريعة</h3><p>المزامنة سحابية وتظهر التعديلات مباشرة على الموقع لكل المستخدمين.</p><button class="btn" data-act="add-project">إضافة مشروع</button> <button class="btn ghost" data-act="add-service">إضافة خدمة</button></div>`,
   projects: () => { const l = DB.projects.filter(p => q(p.title + p.category)); return `<div class="ahead"><h2>المشاريع</h2><input class="search" style="max-width:240px" placeholder="ابحث في المشاريع" aria-label="ابحث في المشاريع"><button class="btn" data-act="add-project">إضافة مشروع</button></div>${l.map(p => `<div class="row"><img src="${esc(p.image)}" alt=""><div class="grow"><b>${esc(p.title)}</b><small>${esc(p.category)} ·${esc(p.url)}</small></div><button class="btn small ghost" data-act="edit-project" data-id="${p.id}">تعديل</button><button class="btn small danger" data-act="del-project" data-id="${p.id}">حذف</button></div>`).join('') || '<p class="empty">لا توجد مشاريع. أضف أول مشروع ليظهر في الموقع.</p>'}`; },
-  services: () => { const l = DB.services.filter(s => q(s.title)); return `<div class="ahead"><h2>الخدمات</h2><input class="search" style="max-width:240px" placeholder="ابحث في الخدمات" aria-label="ابحث في الخدمات"><button class="btn" data-act="add-service">إضافة خدمة</button></div>${l.map(s => `<div class="row"><span class="ic">${icon(s.icon)}</span><div class="grow"><b>${esc(s.title)}</b><small>${esc(s.desc)}</small></div><button class="btn small ghost" data-act="edit-service" data-id="${s.id}">تعديل</button><button class="btn small danger" data-act="del-service" data-id="${s.id}">حذف</button></div>`).join('') || '<p class="empty">لا توجد خدمات.</p>'}`; },
-  website: () => `<div class="ahead"><h2>الموقع</h2></div><div class="panel"><h3>الشركة والقسم الرئيسي والتواصل</h3><p>اسم الشركة ونصوص الواجهة ونبذة عنا والبريد والهاتف والعنوان.</p><button class="btn" data-act="edit-info">تعديل معلومات الموقع</button></div><div class="panel"><h3>الشعار والأيقونة</h3><p>استخدم رابط صورة أو ارفع ملفًا مباشرة عبر السحابة.</p><button class="btn" data-act="edit-brand">تغيير الشعار والأيقونة</button></div><div class="panel"><h3>الإحصائيات</h3><p>${DB.stats.map(s => esc(s.value + ' ' + s.label)).join(' · ')}</p><button class="btn" data-act="edit-stats">تعديل الإحصائيات</button> <button class="btn ghost" data-act="add-stat">إضافة إحصائية</button></div>`,
-  social: () => `<div class="ahead"><h2>روابط التواصل</h2></div><div class="panel"><p>الروابط الفارغة لا تظهر في الموقع.</p><button class="btn" data-act="edit-social">تعديل روابط التواصل</button></div>`,
-  settings: () => `<div class="ahead"><h2>الإعدادات</h2></div><div class="panel"><h3>إعادة البيانات الافتراضية</h3><p>تحذف كل تغييراتك من السحابة وتستعيد المحتوى المبدئي.</p><button class="btn danger" data-act="reset">إعادة البيانات الافتراضية</button></div>`
-};
-const INFO_FIELDS = [['name', 'اسم الشركة'], ['heroTitle', 'عنوان القسم الرئيسي'], ['heroText', 'وصف القسم الرئيسي', 'textarea'], ['about', 'نبذة عن الشركة', 'textarea'], ['email', 'البريد الإلكتروني', 'email'], ['phone', 'رقم الهاتف'], ['address', 'العنوان']].map(([k, label, type]) => ({ k, label, type, req: k === 'name' || k === 'heroTitle' }));
-
-function adminAction(a, id) {
-  const acts = {
-    'add-project': () => editProject(), 'edit-project': () => editProject(id), 'del-project': () => deleteProject(id),
-    'add-service': () => editService(), 'edit-service': () => editService(id), 'del-service': () => deleteService(id),
-    'edit-info': () => openForm({ title: 'معلومات الموقع', fields: INFO_FIELDS, values: DB.info, onSave: async v => await saved(() => Object.assign(DB.info, v)) }),
-    'edit-brand': () => openForm({ title: 'الشعار والأيقونة', fields: [{ k: 'logo', label: 'الشعار', type: 'image' }, { k: 'favicon', label: 'أيقونة الموقع', type: 'image' }], values: DB.info, onSave: async v => await saved(() => Object.assign(DB.info, v)) }),
-    'edit-social': () => openForm({ title: 'روابط التواصل', fields: Object.keys(DB.social).map(k => ({ k, label: 'رابط ' + k[0].toUpperCase() + k.slice(1), type: 'url' })), values: DB.social, onSave: async v => await saved(() => Object.assign(DB.social, v)) }),
-    'edit-stats': () => openForm({ title: 'الإحصائيات', fields: DB.stats.flatMap((s, n) => [{ k: 'v' + n, label: `القيمة ${n + 1}`, req: 1 }, { k: 'l' + n, label: `الوصف ${n + 1}`, req: 1 }]), values: Object.fromEntries(DB.stats.flatMap((s, n) => [['v' + n, s.value], ['l' + n, s.label]])), onSave: async v => await saved(() => DB.stats.forEach((s, n) => { s.value = v['v' + n]; s.label = v['l' + n]; })) }),
-    'add-stat': () => openForm({ title: 'إضافة إحصائية', fields: [{ k: 'value', label: 'القيمة (مثال: 25+)', req: 1 }, { k: 'label', label: 'الوصف', req: 1 }], values: {}, onSave: async v => await saved(() => DB.stats.push({ id: uid(), ...v })) }),
-    reset: () => confirmBox('هل تريد إعادة كل بيانات الموقع إلى الوضع الافتراضي؟ ستُفقد تغييراتك.', async () => { DB = makeDefaults(); await saveData(); adminView(); })
-  };
-  acts[a] && acts[a]();
-}
-async function saved(fn) { fn(); const ok = await saveData(); if (ok) adminView(); return ok; }
-
-/* ========== 11.
+  services: () => { const l = DB.services.filter(s => q(s.title)); return `<div class="ahead"><h2>الخدمات</h2><input class="search" style="max-width:240px" placeholder="ابحث في الخدمات" aria-label="ابحث في الخدمات"><button class="btn" data-act="add-service">إضافة خدمة</button></div>${l.map(s => `<div class="row"><span class="ic">${icon(
