@@ -2,10 +2,8 @@
 
 /* ========== 1. CONFIGURATION & CLOUD SETTINGS ========== */
 
-// بيانات تسجيل الدخول للوحة التحكم
 const AUTH = { user: 'admin', pass: '1234' };
 
-// 1. إعدادات فايربيس (Firebase Config)
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyDIEYaEcIrnJSEBhm-7wWijmoOPM_QHYjU",
   authDomain: "revew-f8136.firebaseapp.com",
@@ -16,7 +14,6 @@ const FIREBASE_CONFIG = {
   appId: "1:775725909156:web:952c856e306b94ac84d231"
 };
 
-// 2. إعدادات رفع الصور السحابية
 const UPLOAD_PROVIDER = 'imgbb';
 const IMGBB_API_KEY = "820a1a52d1b835874a9200fe7d3bb6b3";
 const IMAGEKIT_PUBLIC_KEY = "YOUR_IMAGEKIT_PUBLIC_KEY";
@@ -77,11 +74,13 @@ const makeDefaults = () => ({
 let DB = makeDefaults();
 let dbRef = null;
 
-const isFirebaseConfigured = FIREBASE_CONFIG.apiKey && !FIREBASE_CONFIG.apiKey.startsWith('YOUR_');
+const isFirebaseConfigured = Boolean(FIREBASE_CONFIG.apiKey && !FIREBASE_CONFIG.apiKey.startsWith('YOUR_'));
 
 if (isFirebaseConfigured && typeof firebase !== 'undefined') {
   try {
-    firebase.initializeApp(FIREBASE_CONFIG);
+    if (!firebase.apps.length) {
+      firebase.initializeApp(FIREBASE_CONFIG);
+    }
     dbRef = firebase.database().ref('nexora_data');
     
     dbRef.on('value', snapshot => {
@@ -256,7 +255,17 @@ function openAdmin() { $('#admin').hidden = false; document.body.style.overflow 
 function adminView() {
   const A = $('#admin');
   A.innerHTML = `<aside class="side"><a class="brand" href="#" data-go="exit"><span class="brand-mark">${logoHTML()}</span>الإدارة</a>${NAV.map(([k, l]) => `<button data-go="${k}" class="${k === current ? 'on' : ''}">${l}</button>`).join('')}<button data-go="exit">عرض الموقع</button><button data-go="logout">تسجيل الخروج</button></aside><section class="amain" id="amain">${VIEWS[current]()}</section>`;
-  const s = $('.search', A); if (s) { s.value = query; s.addEventListener('input', e => { query = e.target.value; const pos = e.target.selectionStart; adminView(); const n =$('.search'); n.focus(); n.setSelectionRange(pos, pos); }); }
+  const s = $('.search', A);
+  if (s) {
+    s.value = query;
+    s.addEventListener('input', e => {
+      query = e.target.value;
+      const pos = e.target.selectionStart;
+      adminView();
+      const n = $('.search');
+      if (n) { n.focus(); n.setSelectionRange(pos, pos); }
+    });
+  }
 }
 const q = t => !query || t.toLowerCase().includes(query.toLowerCase());
 const VIEWS = {
@@ -341,33 +350,71 @@ function openForm({ title, fields, values, onSave, submit = 'حفظ التغيي
       else if (f.type === 'url' && val && !/^https?:\/\//i.test(val)) msg = 'أدخل رابطًا كاملًا يبدأ بـ http:// أو https://';
       else if (f.type === 'email' && val && !/^\S+@\S+\.\S+$/.test(val)) msg = 'أدخل بريدًا إلكترونيًا صحيحًا.';
       box.classList.toggle('bad', !!msg);
-      $('.err', box).textContent = msg;       if (msg) ok = false;       out[f.k] = f.type === 'tags' ? val.split(',').map(t => t.trim()).filter(Boolean) : val;     });      if (ok) {       const savedOk = await onSave(out);       if (savedOk !== false) m.close();     }   }); }  /* ========== 12. ANIMATIONS & SCROLL ========== */ const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches; let io, counted = new WeakSet(); function observe() {   io = io \vert{}\vert{} new IntersectionObserver(es => es.forEach(e => {     if (!e.isIntersecting) return;     e.target.classList.add('in'); io.unobserve(e.target);     $$('[data-count]', e.target).forEach(countUp);
+      $('.err', box).textContent = msg;       if (msg) ok = false;       out[f.k] = f.type === 'tags' ? val.split(',').map(t => t.trim()).filter(Boolean) : val;     });      if (ok) {       const savedOk = await onSave(out);       if (savedOk !== false) m.close();     }   }); }  /* ========== 12. ANIMATIONS & SCROLL ========== */ const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches; let io, counted = new WeakSet(); function observe() {   io = io \vert{}\vert{} new IntersectionObserver(es => es.forEach(e => {     if (!e.isIntersecting) return;     e.target.classList.add('in');     io.unobserve(e.target);     $$('[data-count]', e.target).forEach(countUp);
   }), { threshold: .15 });
   $$('.rv:not(.in)').forEach(el => io.observe(el));$$
-('[data-count]').forEach(el => { if (!el.closest('.rv') && !counted.has(el)) io.observe(el.parentNode); });
-}
-function countUp(el) {
-  if (counted.has(el)) return; counted.add(el);
-  const m = /^(\d+)(.*)$/.exec(el.dataset.count); if (!m || reduce) return;
-  const end = +m[1], t0 = performance.now();
-  (function tick(t) { const p = Math.min((t - t0) / 1200, 1); el.textContent = Math.round(end * (1 - Math.pow(1 - p, 3))) + m[2]; if (p < 1) requestAnimationFrame(tick); })(t0);
-}
-function onScroll() {
-  $('#nav').classList.toggle('scrolled', scrollY > 30);
-  const h = document.documentElement; $('#progress').style.width = (scrollY / (h.scrollHeight - h.clientHeight || 1) * 100) + '%';
+('[data-count]').forEach(el => {
+    if (!el.closest('.rv') && !counted.has(el)) io.observe(el.parentNode);
+  });
 }
 
-/* ========== 13. EVENT LISTENERS ========== */
-$('#burger').addEventListener('click', () => { const o = $('#menu').classList.toggle('open'); $('#burger').classList.toggle('open', o); $('#burger').setAttribute('aria-expanded', o); });
-$('#menu').addEventListener('click', e => { if (e.target.tagName === 'A') { $('#menu').classList.remove('open'); $('#burger').classList.remove('open'); } });
+function countUp(el) {
+  if (counted.has(el)) return;
+  counted.add(el);
+  const m = /^(\d+)(.*)$/.exec(el.dataset.count);
+  if (!m || reduce) return;
+  const end = +m[1], t0 = performance.now();
+  (function tick(t) {
+    const p = Math.min((t - t0) / 1200, 1);
+    el.textContent = Math.round(end * (1 - Math.pow(1 - p, 3))) + m[2];
+    if (p < 1) requestAnimationFrame(tick);
+  })(t0);
+}
+
+function onScroll() {
+  $('#nav').classList.toggle('scrolled', scrollY > 30);
+  const h = document.documentElement;
+  $('#progress').style.width = (scrollY / (h.scrollHeight - h.clientHeight || 1) * 100) + '%';
+}
+
+/* ========== 13. EVENT LISTENERS & LIFECYCLE ========== */
+$('#burger').addEventListener('click', () => {
+  const o = $('#menu').classList.toggle('open');
+  $('#burger').classList.toggle('open', o);
+  $('#burger').setAttribute('aria-expanded', o);
+});
+
+$('#menu').addEventListener('click', e => {
+  if (e.target.tagName === 'A') {
+    $('#menu').classList.remove('open');
+    $('#burger').classList.remove('open');
+  }
+});
+
 $('#adminBtn').addEventListener('click', openLogin);
+
 $('#admin').addEventListener('click', async e => {
   const go = e.target.closest('[data-go]'), act = e.target.closest('[data-act]');
-  if (go) { e.preventDefault(); const k = go.dataset.go; if (k === 'logout') logout(); else if (k === 'exit') { $('#admin').hidden = true; document.body.style.overflow = ''; } else { current = k; query = ''; adminView(); } }
+  if (go) {
+    e.preventDefault();
+    const k = go.dataset.go;
+    if (k === 'logout') logout();
+    else if (k === 'exit') { $('#admin').hidden = true; document.body.style.overflow = ''; }
+    else { current = k; query = ''; adminView(); }
+  }
   if (act) adminAction(act.dataset.act, +act.dataset.id);
 });
+
 addEventListener('scroll', onScroll, { passive: true });
-addEventListener('load', () => setTimeout(() => $('#loader').classList.add('done'), reduce ? 0 : 500));
+
+function hideLoader() {
+  const l = $('#loader');
+  if (l) l.classList.add('done');
+}
+
+if (document.readyState === 'complete') hideLoader();
+else addEventListener('load', hideLoader);
+setTimeout(hideLoader, 1500);
 
 render();
 onScroll();
