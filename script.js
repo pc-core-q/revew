@@ -23,7 +23,8 @@ const IMAGEKIT_PUBLIC_KEY = "YOUR_IMAGEKIT_PUBLIC_KEY";
 const IMAGEKIT_URL_ENDPOINT = "https://ik.imagekit.io/YOUR_IMAGEKIT_ID";
 
 /* ========== 2. UTILS & HELPERS ========== */
-const $ = (s, r = document) => r.querySelector(s); const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const uid = () => Date.now() + Math.floor(Math.random() * 1000);
 
@@ -261,4 +262,112 @@ const q = t => !query || t.toLowerCase().includes(query.toLowerCase());
 const VIEWS = {
   dash: () => `<div class="ahead"><h2>لوحة التحكم</h2></div><div class="acards"><div class="acard"><b>${DB.projects.length}</b><span>المشاريع</span></div><div class="acard"><b>${DB.services.length}</b><span>الخدمات</span></div><div class="acard"><b>${Object.values(DB.social).filter(Boolean).length}</b><span>روابط التواصل المضافة</span></div><div class="acard"><b>${DB.stats.length}</b><span>الإحصائيات</span></div></div><div class="panel"><h3>إجراءات سريعة</h3><p>المزامنة سحابية وتظهر التعديلات مباشرة على الموقع لكل المستخدمين.</p><button class="btn" data-act="add-project">إضافة مشروع</button> <button class="btn ghost" data-act="add-service">إضافة خدمة</button></div>`,
   projects: () => { const l = DB.projects.filter(p => q(p.title + p.category)); return `<div class="ahead"><h2>المشاريع</h2><input class="search" style="max-width:240px" placeholder="ابحث في المشاريع" aria-label="ابحث في المشاريع"><button class="btn" data-act="add-project">إضافة مشروع</button></div>${l.map(p => `<div class="row"><img src="${esc(p.image)}" alt=""><div class="grow"><b>${esc(p.title)}</b><small>${esc(p.category)} ·${esc(p.url)}</small></div><button class="btn small ghost" data-act="edit-project" data-id="${p.id}">تعديل</button><button class="btn small danger" data-act="del-project" data-id="${p.id}">حذف</button></div>`).join('') || '<p class="empty">لا توجد مشاريع. أضف أول مشروع ليظهر في الموقع.</p>'}`; },
-  services: () => { const l = DB.services.filter(s => q(s.title)); return `<div class="ahead"><h2>الخدمات</h2><input class="search" style="max-width:240px" placeholder="ابحث في الخدمات" aria-label="ابحث في الخدمات"><button class="btn" data-act="add-service">إضافة خدمة</button></div>${l.map(s => `<div class="row"><span class="ic">${icon(
+  services: () => { const l = DB.services.filter(s => q(s.title)); return `<div class="ahead"><h2>الخدمات</h2><input class="search" style="max-width:240px" placeholder="ابحث في الخدمات" aria-label="ابحث في الخدمات"><button class="btn" data-act="add-service">إضافة خدمة</button></div>${l.map(s => `<div class="row"><span class="ic">${icon(s.icon)}</span><div class="grow"><b>${esc(s.title)}</b><small>${esc(s.desc)}</small></div><button class="btn small ghost" data-act="edit-service" data-id="${s.id}">تعديل</button><button class="btn small danger" data-act="del-service" data-id="${s.id}">حذف</button></div>`).join('') || '<p class="empty">لا توجد خدمات.</p>'}`; },
+  website: () => `<div class="ahead"><h2>الموقع</h2></div><div class="panel"><h3>الشركة والقسم الرئيسي والتواصل</h3><p>اسم الشركة ونصوص الواجهة ونبذة عنا والبريد والهاتف والعنوان.</p><button class="btn" data-act="edit-info">تعديل معلومات الموقع</button></div><div class="panel"><h3>الشعار والأيقونة</h3><p>استخدم رابط صورة أو ارفع ملفًا مباشرة عبر السحابة.</p><button class="btn" data-act="edit-brand">تغيير الشعار والأيقونة</button></div><div class="panel"><h3>الإحصائيات</h3><p>${DB.stats.map(s => esc(s.value + ' ' + s.label)).join(' · ')}</p><button class="btn" data-act="edit-stats">تعديل الإحصائيات</button> <button class="btn ghost" data-act="add-stat">إضافة إحصائية</button></div>`,
+  social: () => `<div class="ahead"><h2>روابط التواصل</h2></div><div class="panel"><p>الروابط الفارغة لا تظهر في الموقع.</p><button class="btn" data-act="edit-social">تعديل روابط التواصل</button></div>`,
+  settings: () => `<div class="ahead"><h2>الإعدادات</h2></div><div class="panel"><h3>إعادة البيانات الافتراضية</h3><p>تحذف كل تغييراتك من السحابة وتستعيد المحتوى المبدئي.</p><button class="btn danger" data-act="reset">إعادة البيانات الافتراضية</button></div>`
+};
+const INFO_FIELDS = [['name', 'اسم الشركة'], ['heroTitle', 'عنوان القسم الرئيسي'], ['heroText', 'وصف القسم الرئيسي', 'textarea'], ['about', 'نبذة عن الشركة', 'textarea'], ['email', 'البريد الإلكتروني', 'email'], ['phone', 'رقم الهاتف'], ['address', 'العنوان']].map(([k, label, type]) => ({ k, label, type, req: k === 'name' || k === 'heroTitle' }));
+
+function adminAction(a, id) {
+  const acts = {
+    'add-project': () => editProject(), 'edit-project': () => editProject(id), 'del-project': () => deleteProject(id),
+    'add-service': () => editService(), 'edit-service': () => editService(id), 'del-service': () => deleteService(id),
+    'edit-info': () => openForm({ title: 'معلومات الموقع', fields: INFO_FIELDS, values: DB.info, onSave: async v => await saved(() => Object.assign(DB.info, v)) }),
+    'edit-brand': () => openForm({ title: 'الشعار والأيقونة', fields: [{ k: 'logo', label: 'الشعار', type: 'image' }, { k: 'favicon', label: 'أيقونة الموقع', type: 'image' }], values: DB.info, onSave: async v => await saved(() => Object.assign(DB.info, v)) }),
+    'edit-social': () => openForm({ title: 'روابط التواصل', fields: Object.keys(DB.social).map(k => ({ k, label: 'رابط ' + k[0].toUpperCase() + k.slice(1), type: 'url' })), values: DB.social, onSave: async v => await saved(() => Object.assign(DB.social, v)) }),
+    'edit-stats': () => openForm({ title: 'الإحصائيات', fields: DB.stats.flatMap((s, n) => [{ k: 'v' + n, label: `القيمة ${n + 1}`, req: 1 }, { k: 'l' + n, label: `الوصف ${n + 1}`, req: 1 }]), values: Object.fromEntries(DB.stats.flatMap((s, n) => [['v' + n, s.value], ['l' + n, s.label]])), onSave: async v => await saved(() => DB.stats.forEach((s, n) => { s.value = v['v' + n]; s.label = v['l' + n]; })) }),
+    'add-stat': () => openForm({ title: 'إضافة إحصائية', fields: [{ k: 'value', label: 'القيمة (مثال: 25+)', req: 1 }, { k: 'label', label: 'الوصف', req: 1 }], values: {}, onSave: async v => await saved(() => DB.stats.push({ id: uid(), ...v })) }),
+    reset: () => confirmBox('هل تريد إعادة كل بيانات الموقع إلى الوضع الافتراضي؟ ستُفقد تغييراتك.', async () => { DB = makeDefaults(); await saveData(); adminView(); })
+  };
+  acts[a] && acts[a]();
+}
+async function saved(fn) { fn(); const ok = await saveData(); if (ok) adminView(); return ok; }
+
+/* ========== 11. MODALS, TOASTS, FORMS ========== */
+function toast(msg, type = '') {
+  const t = document.createElement('div'); t.className = 'toast ' + type; t.textContent = msg; $('#toasts').append(t); setTimeout(() => t.remove(), 3500);
+}
+function modal(html) {
+  const bg = document.createElement('div'); bg.className = 'mbg'; bg.innerHTML = `<div class="modal" role="dialog" aria-modal="true">${html}</div>`;
+  const prev = document.activeElement;
+  const close = () => { bg.remove(); document.removeEventListener('keydown', esc_); prev && prev.focus && prev.focus(); };
+  const esc_ = e => e.key === 'Escape' && close();
+  document.addEventListener('keydown', esc_); bg.addEventListener('mousedown', e => e.target === bg && close());
+  document.body.append(bg); (bg.querySelector('input,textarea,select,button') || bg).focus();
+  return { bg, close };
+}
+function confirmBox(msg, onYes) {
+  const m = modal(`<h3>تأكيد الإجراء</h3><p>${esc(msg)}</p><div class="acts"><button class="btn ghost" data-n>إلغاء</button><button class="btn danger" data-y>تأكيد</button></div>`);
+  $('[data-n]', m.bg).onclick = m.close; $('[data-y]', m.bg).onclick = () => { m.close(); onYes(); };
+}
+function openForm({ title, fields, values, onSave, submit = 'حفظ التغييرات', note = '' }) {
+  const uploads = {};
+  const field = f => {
+    const v = values[f.k] ?? '', id = 'f_' + f.k;
+    let input;
+    if (f.type === 'textarea') input = `<textarea id="${id}" rows="4">${esc(v)}</textarea>`;
+    else if (f.type === 'select') input = `<select id="${id}">${f.opts.map(o => `<option value="${o}" ${o === v ? 'selected' : ''}>${ICON_AR[o] || o}</option>`).join('')}</select>`;
+    else if (f.type === 'tags') input = `<input id="${id}" value="${esc((v || []).join(', '))}">`;
+    else if (f.type === 'image') input = `<input id="${id}" dir="ltr" placeholder="رابط الصورة المباشر" value="${esc(v)}"><input type="file" accept="image/*" data-file="${f.k}" aria-label="رفع صورة إلى السحابة" style="margin-top:.5rem"><img class="pv" src="${esc(v)}" alt="معاينة" ${v ? '' : 'hidden'}>`;
+    else input = `<input id="${id}" type="${f.type || 'text'}" value="${esc(v)}">`;
+    return `<div class="f"><label for="${id}">${f.label}${f.req ? ' *' : ''}</label>${input}<span class="err"></span></div>`;
+  };
+  const m = modal(`<h3>${title}</h3><form novalidate>${fields.map(field).join('')}${note ? `<p class="demo">${note}</p>` : ''}<div class="acts"><button type="button" class="btn ghost" data-n>إلغاء</button><button class="btn">${submit}</button></div></form>`);
+  const form = $('form', m.bg);$('[data-n]', m.bg).onclick = m.close;
+  const imgOf = k => uploads[k] || $('#f_' + k, m.bg).value.trim();    $$('[data-file]', m.bg).forEach(inp => inp.addEventListener('change', async () => {
+    const file = inp.files[0];
+    if (!file) return;
+
+    const key = inp.dataset.file;
+    const urlInput = $('#f_' + key, m.bg);     const pv = inp.parentNode.querySelector('.pv');      try {       inp.disabled = true;       toast('جاري رفع الصورة إلى السحابة...', 'info');       const cloudUrl = await uploadToCloud(file);       uploads[key] = cloudUrl;       if (urlInput) urlInput.value = cloudUrl;       if (pv) { pv.src = cloudUrl; pv.hidden = false; }       toast('تم رفع الصورة بنجاح!');     } catch (err) {       console.error(err);       toast(err.message, 'error');       inp.value = '';     } finally {       inp.disabled = false;     }   }));    $$('input[id^=f_]', m.bg).forEach(inp => inp.addEventListener('input', () => {
+    const f = fields.find(x => 'f_' + x.k === inp.id);
+    if (f && f.type === 'image') {
+      delete uploads[f.k];
+      const pv = inp.parentNode.querySelector('.pv');
+      pv.src = inp.value;
+      pv.hidden = !inp.value;
+    }
+  }));
+
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    let ok = true;
+    const out = {};
+    fields.forEach(f => {
+      const el = $('#f_' + f.k, m.bg), box = el.closest('.f');
+      let val = f.type === 'image' ? imgOf(f.k) : el.value.trim(), msg = '';
+      if (f.req && !val) msg = 'هذا الحقل مطلوب.';
+      else if (f.type === 'url' && val && !/^https?:\/\//i.test(val)) msg = 'أدخل رابطًا كاملًا يبدأ بـ http:// أو https://';
+      else if (f.type === 'email' && val && !/^\S+@\S+\.\S+$/.test(val)) msg = 'أدخل بريدًا إلكترونيًا صحيحًا.';
+      box.classList.toggle('bad', !!msg);
+      $('.err', box).textContent = msg;       if (msg) ok = false;       out[f.k] = f.type === 'tags' ? val.split(',').map(t => t.trim()).filter(Boolean) : val;     });      if (ok) {       const savedOk = await onSave(out);       if (savedOk !== false) m.close();     }   }); }  /* ========== 12. ANIMATIONS & SCROLL ========== */ const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches; let io, counted = new WeakSet(); function observe() {   io = io \vert{}\vert{} new IntersectionObserver(es => es.forEach(e => {     if (!e.isIntersecting) return;     e.target.classList.add('in'); io.unobserve(e.target);     $$('[data-count]', e.target).forEach(countUp);
+  }), { threshold: .15 });
+  $$('.rv:not(.in)').forEach(el => io.observe(el));$$
+('[data-count]').forEach(el => { if (!el.closest('.rv') && !counted.has(el)) io.observe(el.parentNode); });
+}
+function countUp(el) {
+  if (counted.has(el)) return; counted.add(el);
+  const m = /^(\d+)(.*)$/.exec(el.dataset.count); if (!m || reduce) return;
+  const end = +m[1], t0 = performance.now();
+  (function tick(t) { const p = Math.min((t - t0) / 1200, 1); el.textContent = Math.round(end * (1 - Math.pow(1 - p, 3))) + m[2]; if (p < 1) requestAnimationFrame(tick); })(t0);
+}
+function onScroll() {
+  $('#nav').classList.toggle('scrolled', scrollY > 30);
+  const h = document.documentElement; $('#progress').style.width = (scrollY / (h.scrollHeight - h.clientHeight || 1) * 100) + '%';
+}
+
+/* ========== 13. EVENT LISTENERS ========== */
+$('#burger').addEventListener('click', () => { const o = $('#menu').classList.toggle('open'); $('#burger').classList.toggle('open', o); $('#burger').setAttribute('aria-expanded', o); });
+$('#menu').addEventListener('click', e => { if (e.target.tagName === 'A') { $('#menu').classList.remove('open'); $('#burger').classList.remove('open'); } });
+$('#adminBtn').addEventListener('click', openLogin);
+$('#admin').addEventListener('click', async e => {
+  const go = e.target.closest('[data-go]'), act = e.target.closest('[data-act]');
+  if (go) { e.preventDefault(); const k = go.dataset.go; if (k === 'logout') logout(); else if (k === 'exit') { $('#admin').hidden = true; document.body.style.overflow = ''; } else { current = k; query = ''; adminView(); } }
+  if (act) adminAction(act.dataset.act, +act.dataset.id);
+});
+addEventListener('scroll', onScroll, { passive: true });
+addEventListener('load', () => setTimeout(() => $('#loader').classList.add('done'), reduce ? 0 : 500));
+
+render();
+onScroll();
