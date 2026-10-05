@@ -389,12 +389,21 @@ function adminAction(a, id) {
     'edit-info': () => openForm({ title: 'معلومات الموقع', fields: INFO_FIELDS, values: DB.info, onSave: async v => await saved(() => Object.assign(DB.info, v)) }),
     'edit-brand': () => openForm({ title: 'الشعار والأيقونة', fields: [{ k: 'logo', label: 'الشعار', type: 'image' }, { k: 'favicon', label: 'أيقونة الموقع', type: 'image' }], values: DB.info, onSave: async v => await saved(() => Object.assign(DB.info, v)) }),
     'edit-social': () => {
-      const fields = Object.keys(DB.social).map(k => ({
-        k,
-        label: k === 'whatsapp' ? 'رابط أو رقم WhatsApp' : ('رابط ' + k[0].toUpperCase() + k.slice(1)),
-        type: k === 'whatsapp' ? 'text' : 'url'
-      }));
-      openForm({ title: 'روابط التواصل', fields, values: DB.social, onSave: async v => await saved(() => Object.assign(DB.social, v)) });
+      const socialList = [
+        { k: 'whatsapp', label: 'رابط أو رقم WhatsApp', type: 'text' },
+        { k: 'github', label: 'رابط GitHub', type: 'url' },
+        { k: 'linkedin', label: 'رابط LinkedIn', type: 'url' },
+        { k: 'twitter', label: 'رابط Twitter / X', type: 'url' },
+        { k: 'instagram', label: 'رابط Instagram', type: 'url' }
+      ];
+      openForm({
+        title: 'روابط التواصل',
+        fields: socialList,
+        values: DB.social || {},
+        onSave: async v => await saved(() => {
+          DB.social = Object.assign({}, DB.social, v);
+        })
+      });
     },
     'edit-stats': () => openForm({ title: 'الإحصائيات', fields: DB.stats.flatMap((s, n) => [{ k: 'v' + n, label: `القيمة ${n + 1}`, req: 1 }, { k: 'l' + n, label: `الوصف ${n + 1}`, req: 1 }]), values: Object.fromEntries(DB.stats.flatMap((s, n) => [['v' + n, s.value], ['l' + n, s.label]])), onSave: async v => await saved(() => DB.stats.forEach((s, n) => { s.value = v['v' + n]; s.label = v['l' + n]; })) }),
     'add-stat': () => openForm({ title: 'إضافة إحصائية', fields: [{ k: 'value', label: 'القيمة (مثال: 25+)', req: 1 }, { k: 'label', label: 'الوصف', req: 1 }], values: {}, onSave: async v => await saved(() => DB.stats.push({ id: uid(), ...v })) }),
